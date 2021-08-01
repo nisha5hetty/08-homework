@@ -13,20 +13,20 @@
 # 
 # Before we get started: when you want to take the first row of your data and set it as the header, use this trick.
 
-# In[1]:
+# In[237]:
 
 
 import pandas as pd
 import camelot
 
 
-# In[2]:
+# In[238]:
 
 
 get_ipython().run_line_magic('matplotlib', 'notebook')
 
 
-# In[3]:
+# In[149]:
 
 
 df = pd.DataFrame([
@@ -39,10 +39,10 @@ df = pd.DataFrame([
 df
 
 
-# In[4]:
+# In[151]:
 
 
-# Set the first column as the columns
+# Set the first row as the columns
 df.columns = df.loc[0]
 
 # Drop the first row
@@ -57,7 +57,7 @@ df
 # 
 # Another alternative is to use `.rename` on your columns and just filter out the columns you aren't interested in. This can be useful if the column name shows up multiple times in your data for some reason or another.
 
-# In[5]:
+# In[152]:
 
 
 # Starting with the same-ish data...
@@ -72,7 +72,7 @@ df = pd.DataFrame([
 df
 
 
-# In[6]:
+# In[153]:
 
 
 df = df.rename(columns={
@@ -106,42 +106,54 @@ df
 # * Make sure your rows are *all data*, and you don't have any people named "Inmate Name."
 # 
 
-# In[ ]:
+# In[492]:
 
 
 # Include all pages and check how many tables there are on each page
-inmate_tables = camelot.read_pdf("InmateList.pdf", flavor='stream', pages='1-end')
+inmate_tables = camelot.read_pdf("InmateList.pdf", flavor='stream', pages='1-end', table_areas=['15,734,365,120'])
 inmate_tables
 
 
-# In[7]:
+# In[493]:
 
 
+# Look at where table is
+camelot.plot(inmate_tables[15]).show()
+
+
+# In[494]:
+
+
+# Display all rows
 pd.set_option('display.max_rows', 800)
 
 
-# In[ ]:
+# In[495]:
 
 
+# See what first table looks like
 inmate_tables[0].df
 
 
-# In[ ]:
+# In[496]:
 
 
+# List comprehension
+# Combine tables by stacking on top of one another
+# Reset index so there are no repeating values
 df = [inmate_table.df for inmate_table in inmate_tables]
 df = pd.concat(df, ignore_index=True)
 df
 
 
-# In[ ]:
+# In[497]:
 
 
-# Drop the first three rows
-df = df.drop([0,1,2])
+# Drop the rows that aren't required
+df = df[df[1] != 'Inmate Name']
 
 
-# In[ ]:
+# In[498]:
 
 
 # Rename all the columns
@@ -149,25 +161,31 @@ df = df.rename(columns={
     0: 'ICN #',
     1: 'Inmate Name',
     2: 'Facility',
-    3: 'Booking Date',
-    4: 'Booking Date',
-    5: 'Booking Date'
+    3: 'Booking Date'
 })
 df
 
 
-# In[ ]:
-
-
-InmateNames = pd.DataFrame(df['Inmate Name'])
-InmateNames
-
-
-# In[ ]:
+# In[500]:
 
 
 # Convert it into a csv
-InmateNames.to_csv('InmateNames.csv', index=False)
+df.to_csv('InmateList.csv', index=False)
+
+
+# In[501]:
+
+
+# To see if there is missing data, try the following:
+# df.count()
+# value_counts()
+# Scatter plot
+# Box plot
+
+# To look for duplicates, try the following:
+# df.duplicated()
+# df[df.duplicated() == True]
+# df.loc[df.duplicated(), :]
 
 
 # ## WHO resolutions
@@ -179,31 +197,185 @@ InmateNames.to_csv('InmateNames.csv', index=False)
 # * Double-check that your sorting looks right......
 # * You can still get the answer even without perfectly clean data
 
-# In[ ]:
+# In[521]:
 
 
-# Include all pages and check how many tables there are
-who_tables = camelot.read_pdf("A74_R13-en.pdf", flavor='stream', pages='1-end')
+# Read tables from pages 1-5. Save page 6 for later because it needs cleaning up.
+who_tables = camelot.read_pdf("A74_R13-en.pdf", flavor='stream', pages='1-5')
 who_tables
 
 
-# In[ ]:
+# In[522]:
 
 
+# Look at the first table
+who_tables[0].df
+
+
+# In[523]:
+
+
+# List comprehension
+# Combine tables by stacking on top of one another
+# Reset index so there are no repeating values
 df = [who_table.df for who_table in who_tables]
 df = pd.concat(df, ignore_index = True)
+df
 
 
-# In[ ]:
+# In[524]:
 
 
+# Drop the first three rows
+df = df.drop([0,1,2])
 
 
-
-# In[ ]:
-
+# In[525]:
 
 
+# Rename all the columns
+df = df.rename(columns={
+    0: 'Members and Associate Members',
+    1: 'WHO scale for 2022–2023'
+})
+df
+
+
+# In[526]:
+
+
+# Remove rows that say 'Members and Associate Members' from first column
+df = df[df['Members and Associate Members'] != 'Members and Associate Members']
+df
+
+
+# In[527]:
+
+
+# Show the rows that still say 'Members and Associate Members' in the first column and '%' in the second column
+df['Members and Associate Members'].str.contains('Members')
+df['WHO scale for 2022–2023'].str.contains('%')
+
+
+# In[528]:
+
+
+# Show only the rows we want
+df = df[df['Members and Associate Members'].str.contains('Members') == False]
+df = df[df['WHO scale for 2022–2023'].str.contains('%') == False]
+df
+
+
+# In[529]:
+
+
+# Replace blank cells with NaN
+import numpy as np
+df = df.replace(r'^\s*$', np.nan, regex=True)
+df
+
+
+# In[530]:
+
+
+# Remove NaN from second column
+df.dropna(subset=['WHO scale for 2022–2023'])
+
+
+# In[531]:
+
+
+df.shape
+
+
+# In[532]:
+
+
+# See how many tables there are on page 6
+who_tables2 = camelot.read_pdf("A74_R13-en.pdf", flavor='stream', pages='6')
+who_tables2
+
+
+# In[533]:
+
+
+# Look at the table on page 6
+df2 = who_tables2[0].df
+df2
+
+
+# In[534]:
+
+
+# See whether Zambia row can be selected
+df2[df2[1] == 'Zambia']
+
+
+# In[535]:
+
+
+# Create a second table with Zambia and Zimbabwe rows
+df2 = df2[(df2[1]=='Zambia') | (df2[1]=='Zimbabwe')]
+df2
+
+
+# In[536]:
+
+
+# Drop extra columns
+df2 = df2.drop(columns=[0, 2, 4])
+df2
+
+
+# In[537]:
+
+
+# Rename columns
+df2 = df2.rename(columns={
+    1: 'Members and Associate Members',
+    3: 'WHO scale for 2022–2023'
+})
+df2
+
+
+# In[538]:
+
+
+# Combine the two tables and save as a new table
+dfs = [df, df2]
+df = pd.concat(dfs)
+df
+
+
+# In[539]:
+
+
+# Sort the table by assessment
+df.sort_values(by=['WHO scale for 2022–2023'], ascending=False)
+
+
+# In[540]:
+
+
+# Since it's not sorting correctly, check datatype
+df.dtypes
+
+
+# In[541]:
+
+
+# Covert second column into a float
+df['WHO scale for 2022–2023'] = df['WHO scale for 2022–2023'].astype(float)
+df.dtypes
+
+
+# In[544]:
+
+
+# Sort table
+# Show the top ten countries with the highest assessments
+df = df.sort_values(by=['WHO scale for 2022–2023'], ascending=False)
+df.head(10)
 
 
 # In[ ]:
@@ -220,33 +392,35 @@ df = pd.concat(df, ignore_index = True)
 # * Your new best friend might be `\n`
 # * Look up `.count` for strings
 
-# In[ ]:
+# In[545]:
 
 
 import tika
 from tika import parser
 
 
-# In[ ]:
+# In[546]:
 
 
+# Read pdf with Tika
 parsed = parser.from_file('THE_AVENGERS.pdf')
 
 
-# In[ ]:
+# In[547]:
 
 
+# Look at the keys
 parsed.keys()
 
 
-# In[ ]:
+# In[548]:
 
 
 # Check pdf
 print(parsed['content'].strip())
 
 
-# In[ ]:
+# In[549]:
 
 
 # Find out number of lines for IRON MAN
@@ -254,7 +428,7 @@ IRON_MAN = parsed['content'].strip().count('\nIRON MAN\n')
 IRON_MAN
 
 
-# In[ ]:
+# In[550]:
 
 
 # Find out number of lines for THOR
@@ -262,7 +436,7 @@ THOR = parsed['content'].strip().count('\nTHOR\n')
 THOR
 
 
-# In[ ]:
+# In[551]:
 
 
 # Find out number of lines for CAPTAIN AMERICA
@@ -283,69 +457,102 @@ CAPTAIN_AMERICA
 # * You COULD pull both tables separately OR you could pull them both at once and split them in pandas.
 # * Remember you can do things like `df[['name','age']]` to ask for multiple columns
 
-# In[ ]:
+# In[588]:
 
 
-# Include all pages and check how many tables there are
-covid_tables = camelot.read_pdf("covidweekly2721.pdf", flavor='lattice', pages='1-end')
-
-
-# In[ ]:
-
-
-# Look at page 6
+# Read tables on page 6
 covid_tables = camelot.read_pdf("covidweekly2721.pdf", flavor='lattice', pages='6')
 covid_tables
 
 
-# In[ ]:
+# In[589]:
 
 
+# Look at the first table
 covid_tables[1].df
 
 
-# In[ ]:
+# In[590]:
 
 
+# Save as a table
 df = pd.DataFrame(covid_tables[1].df)
 df
 
 
-# In[ ]:
+# In[591]:
 
 
+# Set the first row as the columns
 df.columns = df.loc[0]
 
 
-# In[ ]:
+# In[592]:
 
 
+# Drop first row
 df = df.drop(0)
 df
 
 
-# In[ ]:
+# In[593]:
 
 
+# The tables are stacked side by side so that needs to be fixed
+# Get the first table by selecting the first three columns
+df1 = df.iloc[:, 0:3]
+df1
 
 
-
-# In[ ]:
-
+# In[594]:
 
 
+# Get the second table by selecting the last three columns
+df2 = df.iloc[:, 3:6]
+df2
 
 
-# In[ ]:
+# In[595]:
 
 
+# Since we have to do calculations, remove commas from first table
+# Row 5 is wonky - 77865\n9953
+df1 = df1.replace(',','', regex=True)
+df1
 
 
-
-# In[ ]:
-
+# In[596]:
 
 
+# To remove 77865\n9953 from row 5, 
+df1[['Number of Tests']] = df1[['Number of Tests']].replace('77865\n9953', '77865', regex=False)
+df1
+
+
+# In[597]:
+
+
+# And remove commas from second table
+df2 = df2.replace(',','', regex=True)
+df2
+
+
+# In[598]:
+
+
+# Convert 'Number of Tests' column from string to integers in both tables
+# Check to see whether there are integers
+df1[['Number of Tests']] = df1[['Number of Tests']].apply(pd.to_numeric)
+df2[['Number of Tests']] = df2[['Number of Tests']].apply(pd.to_numeric)
+df1.dtypes
+
+
+# In[604]:
+
+
+# Calculate total number of tests in Minnesota by adding the sums of both tables
+total_tests = df1.sum() + df2.sum()
+total_tests
 
 
 # In[ ]:
@@ -360,27 +567,50 @@ df
 # 
 # * You can clean the results or you can restrict the area the table is pulled from, up to you
 
-# In[ ]:
-
-
-# Include all pages and check how many tables there are
-theme_tables = camelot.read_pdf("2019-Theme-Index-web-1.pdf", flavor='stream', pages='1-end')
-theme_tables
-
-
-# In[ ]:
+# In[605]:
 
 
 # Look at page 11
-theme_tables = camelot.read_pdf("2019-Theme-Index-web-1.pdf", flavor='stream', pages='11)
-theme_tables
+themeparks_tables = camelot.read_pdf("2019-Theme-Index-web-1.pdf", flavor='stream', pages='11', table_areas=['35,464,408,296'])
+themeparks_tables
 
 
-# In[ ]:
+# In[606]:
 
 
-df = theme_tables[0].df
+# Look at where table is
+# Vertical-aligned text makes table wonky so don't include that
+# "left_x,top_y,right_x,bottom_y"
+camelot.plot(themeparks_tables[0]).show()
+
+
+# In[607]:
+
+
+# Look at the table
+df = themeparks_tables[0].df
 df
+
+
+# In[608]:
+
+
+# Rename all the columns
+df = df.rename(columns={
+    0: 'Rank',
+    1: 'Group Name',
+    2: '% Change',
+    3: 'Attendance 2019',
+    4: 'Attendance 2018'
+})
+df
+
+
+# In[609]:
+
+
+# Convert it into a csv
+df.to_csv('TopTenThemeParks.csv', index=False)
 
 
 # In[ ]:
@@ -393,107 +623,124 @@ df
 # 
 # Using [US_Fish_and_Wildlife_Service_2021.pdf](US_Fish_and_Wildlife_Service_2021.pdf) and [a CSV of state populations](http://goodcsv.com/geography/us-states-territories/), find the states with the highest per-capita hunting license holders.
 
-# In[ ]:
+# In[626]:
 
 
+# Read pdf
 hunting_tables = camelot.read_pdf("US_Fish_and_Wildlife_Service_2021.pdf", flavor='lattice', pages='1')
 hunting_tables
 
 
-# In[ ]:
+# In[627]:
 
 
-df = tables[0].df
+# Look at the table
+df = hunting_tables[0].df
 df
 
 
-# In[ ]:
+# In[628]:
 
 
 # Make the first row the columns
 df.columns = df.loc[0]
+df
 
 
-# In[ ]:
+# In[629]:
 
 
 # Drop the first row
 df = df.drop(0)
+df
 
 
-# In[ ]:
+# In[630]:
 
 
+# Remove extra spaces
 df['State'] = df.State.str.strip()
 
 
-# In[ ]:
+# In[631]:
 
 
+# Read csv file
 states = pd.read_csv("us-states-territories.csv")
 states
 
 
-# In[ ]:
+# In[632]:
 
 
+# Remove extra spaces
 states['Abbreviation'] = states.Abbreviation.str.strip()
 
 
-# In[ ]:
+# In[633]:
 
 
-# Combine
-combined = df.merge(statse, left_on='State', right_on='Abbreviation')
-combined
+# Combine the two dfs
+combined_table = df.merge(states, left_on='State', right_on='Abbreviation')
+combined_table
 
 
-# In[ ]:
+# In[634]:
 
 
-updated_df = combined[['State', 'Name','Population (2019)','Paid Hunting License \nHolders*']]
+# Clean up table so it only shows the columns needed to calculate per capita hunting licenses - population and total hunting licenses
+updated_df = combined_table[['State', 'Name','Population (2019)','Total Hunting License, \nTags,Permits & Stamps**']]
+updated_df
 
 
-# In[ ]:
+# In[635]:
 
 
+# Check to see whether columns are strings or objects before doing calculations
+type(updated_df['Population (2019)'][1])
+# type(updated_df['Total Hunting License, \nTags,Permits & Stamps**'][1])
 
 
-
-# In[ ]:
-
+# In[636]:
 
 
+# Remove spaces and convert license column from string to integer
+# Create a new column called 'total licenses'
+updated_df['total_licenses'] = updated_df['Total Hunting License, \nTags,Permits & Stamps**'].str.replace(",", "").astype(int)
+updated_df
 
 
-# In[ ]:
+# In[637]:
 
 
+# Drop NaN values
+updated_df = updated_df.dropna()
 
 
-
-# In[ ]:
-
+# In[638]:
 
 
+# Remove spaces and convert population column from string to integer
+# Create a new column called 'population'
+updated_df['population'] = updated_df['Population (2019)'].str.replace(",", "").astype(int)
+updated_df
 
 
-# In[ ]:
+# In[639]:
 
 
+# Calculate per capita licenses 
+# Create a new column called 'per_capita'
+updated_df['per_capita'] = updated_df['total_licenses'] / updated_df['population']
+updated_df
 
 
-
-# In[ ]:
-
+# In[640]:
 
 
-
-
-# In[ ]:
-
-
-
+# Sort table to find the states with the highest per-capita hunting license holders
+updated_df = updated_df.sort_values(by=['per_capita'], ascending=False)
+updated_df
 
 
 # In[ ]:
